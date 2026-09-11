@@ -1,12 +1,15 @@
 package CCPCT.better_stacking.modConfig;
 
+import CCPCT.better_stacking.BetterStacking;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 public class ModConfig {
 
@@ -33,39 +36,62 @@ public class ModConfig {
     public boolean xpShowLabel = true;
     public int xpSuffixMode = 0;
 
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    private static final Path CONFIG_PATH = FabricLoader.getInstance()
+            .getConfigDir().resolve(BetterStacking.MOD_ID + ".json");
+
+    private static ModConfig INSTANCE = new ModConfig();
 
     public static ModConfig get() {
-        if (INSTANCE==null)
-            INSTANCE = new ModConfig();
         return INSTANCE;
     }
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    public static synchronized void load() {
+        ModConfig loaded = null;
 
-    private static ModConfig INSTANCE;
+        if (Files.exists(CONFIG_PATH)) {
+            try (BufferedReader reader = Files.newBufferedReader(CONFIG_PATH)) {
+                loaded = GSON.fromJson(reader, ModConfig.class);
+            } catch (IOException | RuntimeException e) {
+                // Unreadable or malformed file: fall back to defaults rather than crash the client.
+                BetterStacking.LOGGER.error("Could not read {}, using defaults", CONFIG_PATH, e);
+            }
+        }
 
+        INSTANCE = loaded != null ? loaded : new ModConfig();
+        INSTANCE.clamp();
 
-    private static final Path CONFIG_PATH = FabricLoader.getInstance()
-            .getConfigDir().resolve("easier-crafting.json");
+        if (loaded == null) save();
+    }
 
-    public static void load() {
+    public static synchronized void save() {
+        get().clamp();
         try {
-            if (Files.exists(CONFIG_PATH)) {
-                INSTANCE = GSON.fromJson(Files.newBufferedReader(CONFIG_PATH), ModConfig.class);
-            } else {
-                INSTANCE = new ModConfig();
-                save();
+            Files.createDirectories(CONFIG_PATH.getParent());
+            // Write beside the real file first, so a crash mid write cannot truncate the config.
+            Path temp = CONFIG_PATH.resolveSibling(CONFIG_PATH.getFileName() + ".tmp");
+            Files.writeString(temp, GSON.toJson(get()));
+            try {
+                Files.move(temp, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException atomicUnsupported) {
+                Files.move(temp, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
-            INSTANCE = new ModConfig();
+            BetterStacking.LOGGER.error("Unable to save the Better Stacking config", e);
         }
     }
 
-    public static void save() {
-        try {
-            Files.writeString(CONFIG_PATH, GSON.toJson(get()));
-        } catch (IOException e) {
-            System.err.println("Unable to save EasierCrafting config!");
-        }
+    /** Keeps hand edited files from producing division by zero, invisible labels or endless scans. */
+    private void clamp() {
+        entityUpdateTimeInterval = Math.clamp(entityUpdateTimeInterval, 1, 1200);
+        labelSize = Math.clamp(labelSize, 0.1f, 10f);
+        labelOffset = Math.clamp(labelOffset, -64f, 64f);
+
+        entityCount = Math.clamp(entityCount, 1, 1000);
+
+        itemSuffixMode = Math.clamp(itemSuffixMode, 0, 2);
+        entitySuffixMode = Math.clamp(entitySuffixMode, 0, 2);
+        xpSuffixMode = Math.clamp(xpSuffixMode, 0, 2);
     }
 }
