@@ -11,7 +11,7 @@
   },
   "license": "GPL-3.0",
   "icon": "assets/better_stacking/icon.png",
-  "environment": "*",
+  "environment": "client",
   "entrypoints": {
     "client": ["CCPCT.better_stacking.BetterStacking"],
     "modmenu": ["CCPCT.better_stacking.modConfig.ModMenuHandler"]
@@ -24,7 +24,9 @@
     "fabricloader": "*",
     "minecraft": "${minecraft_range}",
     "java": ">=25",
-    "modmenu": "*",
     "cloth-config": "*"
+  },
+  "recommends": {
+    "modmenu": "*"
   }
 }
