@@ -1,21 +1,24 @@
 package CCPCT.better_stacking;
 
-import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.world.phys.Vec3;
-import net.minecraft.network.chat.Component;
 import com.mojang.blaze3d.vertex.PoseStack;
-import org.jetbrains.annotations.Nullable;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.network.chat.Component;
 
 public interface ICustomNameTagSubmitter {
-    void betterStacking$submitCustomColorNameTag(
+
+    /** Labels are self lit, exactly like vanilla name tags. */
+    int FULL_BRIGHT = 0xF000F0;
+
+    void betterStacking$submitStackLabel(
             PoseStack poseStack,
-            @Nullable Vec3 nameTagAttachment,
-            int offset,
-            Component name,
+            double x,
+            double y,
+            double z,
+            Component label,
             boolean seeThrough,
-            int lightCoords,
             CameraRenderState camera,
             int textColor,
-            int backgroundColor
+            int backgroundColor,
+            float scale
     );
 }

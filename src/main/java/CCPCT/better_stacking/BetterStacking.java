@@ -14,21 +14,13 @@ public class BetterStacking implements ClientModInitializer {
     public static final String MOD_ID = "better_stacking";
     public static final Logger LOGGER = LoggerFactory.getLogger("Better Stacking");
 
-    int remaining = 1;
-
     @Override
     public void onInitializeClient() {
         ModConfig.load();
-        LOGGER.info("Better Stacking initialised and loaded its config :3");
 
-        ClientTickEvents.START_CLIENT_TICK.register(client -> {
-            if (remaining <= 0) {
-                EntityClusterManager.updateClusterData(client);
-                remaining = ModConfig.get().entityUpdateTimeInterval;
-            }
-            remaining -= 1;
-        });
-
+        ClientTickEvents.START_CLIENT_TICK.register(EntityClusterManager::tick);
         LevelRenderEvents.BEFORE_GIZMOS.register(RenderUtil::renderLabel);
+
+        LOGGER.info("Better Stacking initialised and loaded its config :3");
     }
 }

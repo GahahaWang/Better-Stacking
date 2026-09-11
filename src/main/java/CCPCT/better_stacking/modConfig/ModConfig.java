@@ -1,6 +1,7 @@
 package CCPCT.better_stacking.modConfig;
 
 import CCPCT.better_stacking.BetterStacking;
+import CCPCT.better_stacking.util.EntityClusterManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
@@ -22,6 +23,7 @@ public class ModConfig {
     public float labelOffset = 10f;
 
     public boolean itemGeneral = false;
+    public int itemCount = 1;
     public boolean itemShowLabel = true;
     public boolean itemLabelShowName = true;
     public int itemSuffixMode = 0;
@@ -33,6 +35,7 @@ public class ModConfig {
     public int entitySuffixMode = 0;
 
     public boolean xpGeneral = false;
+    public int xpCount = 1;
     public boolean xpShowLabel = true;
     public int xpSuffixMode = 0;
 
@@ -63,6 +66,7 @@ public class ModConfig {
         INSTANCE.clamp();
 
         if (loaded == null) save();
+        EntityClusterManager.invalidate();
     }
 
     public static synchronized void save() {
@@ -80,6 +84,7 @@ public class ModConfig {
         } catch (IOException e) {
             BetterStacking.LOGGER.error("Unable to save the Better Stacking config", e);
         }
+        EntityClusterManager.invalidate();
     }
 
     /** Keeps hand edited files from producing division by zero, invisible labels or endless scans. */
@@ -88,7 +93,9 @@ public class ModConfig {
         labelSize = Math.clamp(labelSize, 0.1f, 10f);
         labelOffset = Math.clamp(labelOffset, -64f, 64f);
 
+        itemCount = Math.clamp(itemCount, 1, 1000);
         entityCount = Math.clamp(entityCount, 1, 1000);
+        xpCount = Math.clamp(xpCount, 1, 1000);
 
         itemSuffixMode = Math.clamp(itemSuffixMode, 0, 2);
         entitySuffixMode = Math.clamp(entitySuffixMode, 0, 2);

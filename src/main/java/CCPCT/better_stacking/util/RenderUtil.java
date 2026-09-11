@@ -1,150 +1,78 @@
 package CCPCT.better_stacking.util;
 
+import CCPCT.better_stacking.BetterStacking;
 import CCPCT.better_stacking.ICustomNameTagSubmitter;
 import CCPCT.better_stacking.modConfig.ModConfig;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.terraformersmc.modmenu.util.mod.Mod;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.OrderedSubmitNodeCollector;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.ExperienceOrb;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
 
-public class RenderUtil {
+/**
+ * Draws the labels prepared by {@link EntityClusterManager}. Runs every frame, so it only does
+ * positioning work here; text and colours are decided when the cluster is built.
+ */
+public final class RenderUtil {
+
+    private static boolean warnedAboutSubmitter;
+
+    private RenderUtil() {
+    }
+
     public static void renderLabel(LevelRenderContext context) {
-        Minecraft client = Minecraft.getInstance();
-
-        if (!ModConfig.get().modEnabled || client.level == null) {
-            return;
-        }
-
         List<EntityClusterManager.ClusterEntry> clusters = EntityClusterManager.getActiveClusters();
         if (clusters.isEmpty()) return;
 
-        PoseStack stack = context.poseStack();
-        Camera camera = client.gameRenderer.mainCamera();
-        Vec3 cameraPos = camera.position();
+        ModConfig config = ModConfig.get();
+        if (!config.modEnabled) return;
 
-        CameraRenderState cameraRenderState = context.levelState().cameraRenderState;
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) return;
 
-        OrderedSubmitNodeCollector orderedCollector = context.submitNodeCollector().order(0);
-
-        if (!(orderedCollector instanceof ICustomNameTagSubmitter customSubmitter)) {
-            System.err.println("unable to wrap");
+        OrderedSubmitNodeCollector collector = context.submitNodeCollector().order(0);
+        if (!(collector instanceof ICustomNameTagSubmitter submitter)) {
+            if (!warnedAboutSubmitter) {
+                warnedAboutSubmitter = true;
+                BetterStacking.LOGGER.error("Cannot submit stack labels: {} does not carry the Better Stacking mixin, labels stay hidden.",
+                        collector.getClass().getName());
+            }
             return;
         }
 
+        CameraRenderState camera = context.levelState().cameraRenderState;
+        Vec3 cameraPos = camera.pos != null ? camera.pos : client.gameRenderer.mainCamera().position();
+
+        final float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        final float scale = Math.max(0.01F, config.labelSize) / 40.0F;
+        final double heightOffset = config.labelOffset;
+
+        PoseStack poseStack = context.poseStack();
+
         for (EntityClusterManager.ClusterEntry entry : clusters) {
-            final int count = entry.count();
-            final Entity leader = entry.leader();
-            if (leader == null || !leader.isAlive()) continue;
+            Entity leader = entry.leader();
+            if (!leader.isAlive()) continue;
 
-            int suffixMode = switch (leader) {
-                case ItemEntity _ -> ModConfig.get().itemSuffixMode;
-                case ExperienceOrb _ -> ModConfig.get().xpSuffixMode;
-                default -> ModConfig.get().entitySuffixMode;
-            };
+            // Interpolated position, otherwise the label lags a tick behind the entity it belongs to.
+            Vec3 position = leader.getPosition(partialTick);
+            double worldY = position.y + leader.getBbHeight() + heightOffset;
 
-            String countText = switch (suffixMode) {
-                case 0 -> String.valueOf(count);
-                case 1 -> intToEng(count);
-                case 2 -> intToMC(count);
-                default -> "error";
-            };
-
-            String text = "x" + countText;
-            final EntityTypeKey type = entry.type();
-
-            switch (leader) {
-                case ItemEntity _ -> {
-                    if (!ModConfig.get().itemShowLabel) continue;
-                    if (ModConfig.get().itemLabelShowName) text = type.display() + " " + text;
-                }
-                case ExperienceOrb _ -> {
-                    if (!ModConfig.get().xpShowLabel) continue;
-                }
-                case Mob _ -> {
-                    if (!ModConfig.get().entityShowLabel) continue;
-                    if (ModConfig.get().entityLabelShowName) text = type.display() + " " + text;
-                }
-                default -> {
-                    continue;
-                }
-            }
-
-            // 1. Wrap your string into a plain literal Component
-            Component labelComponent = Component.literal(text);
-
-            final Vec3 leaderPos = leader.position();
-            final Vec3 relativePos = leaderPos.subtract(cameraPos).add(Vec3.Y_AXIS.scale(type.entity().getBbHeight()+ModConfig.get().labelOffset));
-
-            // 2. We use the custom interface method, passing world-space coordinates (Vec3)
-            // because the method handles the translation internally.
-            customSubmitter.betterStacking$submitCustomColorNameTag(
-                    stack,
-                    relativePos,
-                    0,
-                    labelComponent,
-                    ModConfig.get().renderThroughBlocks,
-                    15728880,
-                    cameraRenderState,
-                    ModConfig.get().labelColour,
-                    ModConfig.get().labelBgColour
+            submitter.betterStacking$submitStackLabel(
+                    poseStack,
+                    position.x - cameraPos.x,
+                    worldY - cameraPos.y,
+                    position.z - cameraPos.z,
+                    entry.label(),
+                    config.renderThroughBlocks,
+                    camera,
+                    config.labelColour,
+                    config.labelBgColour,
+                    scale
             );
         }
     }
-
-    public static String intToEng(int value) {
-        if (value < 1000) {
-            return String.valueOf(value);
-        }
-
-        String[] suffixes = new String[]{"", "k", "M", "G", "T"};
-
-        int exp = (int) (Math.log10(value) / 3);
-
-        if (exp >= suffixes.length) {
-            exp = suffixes.length - 1;
-        }
-
-        double scaledValue = value / Math.pow(1000, exp);
-
-        return String.format("%.1f%s", scaledValue, suffixes[exp]);
-    }
-
-    public static String intToMC(int value) {
-        double sbcLimit = 54.0;
-        double sbLimit = 27.0;
-        double sLimit = 64.0;
-
-        double basePerSb = sLimit * sbLimit;
-        double basePerSbc = basePerSb * sbcLimit;
-
-        if (value >= basePerSbc) {
-            double scaled = (double) value / basePerSbc;
-            return String.format("%.1fsbc", scaled);
-        }
-
-        if (value >= basePerSb) {
-            double scaled = (double) value / basePerSb;
-            return String.format("%.1fsb", scaled);
-        }
-
-        if (value >= sLimit) {
-            double scaled = (double) value / sLimit;
-            return String.format("%.1fs", scaled);
-        }
-
-        return String.valueOf(value);
-    }
-
 }
