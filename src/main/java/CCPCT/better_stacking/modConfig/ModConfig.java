@@ -21,6 +21,8 @@ public class ModConfig {
     public int labelBgColour = 0x67676767;
     public float labelSize = 1f;
     public float labelOffset = 0.5f;
+    /** Blocks; labels further away than this are skipped entirely. 0 disables the limit. */
+    public int labelRenderDistance = 64;
 
     public boolean itemGeneral = false;
     public int itemCount = 1;
@@ -92,6 +94,7 @@ public class ModConfig {
         entityUpdateTimeInterval = Math.clamp(entityUpdateTimeInterval, 1, 1200);
         labelSize = Math.clamp(labelSize, 0.1f, 10f);
         labelOffset = Math.clamp(labelOffset, -64f, 64f);
+        labelRenderDistance = Math.clamp(labelRenderDistance, 0, 512);
 
         itemCount = Math.clamp(itemCount, 1, 1000);
         entityCount = Math.clamp(entityCount, 1, 1000);

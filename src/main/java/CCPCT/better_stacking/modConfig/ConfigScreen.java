@@ -75,6 +75,13 @@ public final class ConfigScreen {
                 .setSaveConsumer(newValue -> ModConfig.get().labelOffset = newValue)
                 .build());
 
+        generalTab.addEntry(entryBuilder.startIntField(text("Label Render Distance"), config.labelRenderDistance)
+                .setTooltip(text("Blocks. Labels further away are not drawn at all.\n0 = no limit"))
+                .setDefaultValue(64)
+                .setMin(0).setMax(512)
+                .setSaveConsumer(newValue -> ModConfig.get().labelRenderDistance = newValue)
+                .build());
+
 
         // === ITEM TAB ===
         itemTab.addEntry(entryBuilder.startBooleanToggle(text("Item General"), config.itemGeneral)
