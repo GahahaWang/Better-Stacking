@@ -20,7 +20,7 @@ public class ModConfig {
     public int labelColour = 0xA0FFFF00;
     public int labelBgColour = 0x67676767;
     public float labelSize = 1f;
-    public float labelOffset = 10f;
+    public float labelOffset = 0.5f;
 
     public boolean itemGeneral = false;
     public int itemCount = 1;
